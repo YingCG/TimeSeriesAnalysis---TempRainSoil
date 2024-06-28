@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plant Data Visualization</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            width: 100vw;
+            margin: 0;
+            padding: 0;
+        }
+
+        h1{
+            color: #B3E2A7;
+        }
+        .container {
+            display: flex;
+        }
+
+        .leftpanel {
+            background-color: black;
+            color: #379777;
+            height: 100vh;
+            width: 60%;
+            padding: 20px;
+        }
+
+        #plant-status {
+            display: flex;
+            width: 100%;
+            height: 300px;
+            flex-wrap: wrap;
+        }
+        #prediction-values{
+            font-size:  1rem;
+        }
+        #prediction-values p{
+            font-weight: 300;
+            font-size:  15px;
+        }
+
+
+        .rightpanel {
+            width: 40%;
+            padding: 1rem;
+            background-color: black;
+            color: #939185;
+        }
+
+        .plant {
+            width: 8rem;
+            height: 5rem;
+            margin: 1rem;
+            padding: 1rem;
+            text-align: center;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .plant img {
+            width: 80px;
+            height: 80px;
+            margin: auto;
+            display: block;
+        }
+
+        .plant p {
+            margin: 0;
+        }
+
+        .happy {
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            color: green;
+        }
+
+        .not-happy {
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            color: red;
+        }
+
+        .chart-container {
+            width: 100%;
+            min-width: 600px;
+            background-color: #fff;
+            margin-bottom: 20px;
+        }
+    </style>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="leftpanel">
+            <h1>Base on Soil Moisture, How Plants feel about the weather?</h1>
+            <p id="prediction-values"></p>
+            <div class="chart-container" id="chart" style="filter: invert(100% );"></div>
+        </div>
+        <div class="rightpanel">
+            <img style="height: 70vh; padding: 0 1rem; opacity: 0.5; text-align: center; filter: invert(100%); margin: 0;"
+                src="https://d2w9rnfcy7mm78.cloudfront.net/2985683/original_78135efac5c6637298965deebe00ad33.gif?1541383125?bc=1"
+                alt="Agathis-australis_Kauri">
+            <div id="plant-status"></div>
+        </div>
+    </div>
+    <footer>Presentation by Ying Chiu Goh</footer>
+
+    <script>
+        Plotly.d3.csv('./predicted_data.csv', function (err, data) {
+            if (err) {
+                console.error("Error loading CSV file:", err);
+                return;
+            }
+
+            // Group data by plant's scientific name
+            var plants = {};
+            data.forEach(function (row) {
+                if (!plants[row['Scientific Name']]) {
+                    plants[row['Scientific Name']] = {
+                        dates: [],
+                        predictedRain: [],
+                        predictedSoilMoist: [],
+                        predictedSoilTemp: [],
+                        SMD: [],
+                        droughtCondition: [],
+                        growthForm: row['Growth Form and Habit'],
+                        threatStatus: row['Threat Status'],
+                        climateImpact: row['Climate Change Impact'],
+                        ecosystemType: row['Ecosystem type'],
+                        iucnThreatRank: row['IUCN THREAT RANK'],
+                        climateChangeRisk: row['risk of negative climate change effects'],
+                        habitatDistribution: row['Habitat type and distribution in New Zealand'],
+                        plantImage: row['Plant Image URL']
+                    };
+                }
+                plants[row['Scientific Name']].dates.push(row.Date);
+                plants[row['Scientific Name']].predictedRain.push(+row['Predicted Rain(mm)']);
+                plants[row['Scientific Name']].predictedSoilMoist.push(+row['Predicted SoilMoist']);
+                plants[row['Scientific Name']].predictedSoilTemp.push(+row['Predicted SoilTemp']);
+                plants[row['Scientific Name']].SMD.push(+row['SMD']);
+                plants[row['Scientific Name']].droughtCondition.push(row['Drought Condition']);
+            });
+
+            // Prepare traces for the weekly chart
+            var weeklyData = [];
+            Object.keys(plants).forEach(function (plant, index) {
+                weeklyData.push({
+                    x: plants[plant].dates,
+                    y: plants[plant].predictedRain,
+                    mode: 'lines+markers',
+                    name: plant
+                });
+            });
+
+            // Extract data
+            var dates = data.map(function (d) {
+                return d.Date;
+            });
+            var predictedRain = data.map(function (d) {
+                return +d['Predicted Rain(mm)'];
+            });
+            var predictedSoilMoist = data.map(function (d) {
+                return +d['Predicted SoilMoist'];
+            });
+            var predictedSoilTemp = data.map(function (d) {
+                return +d['Predicted SoilTemp'];
+            });
+            var SMD = data.map(function (d) {
+                return +d['SMD'];
+            });
+            var droughtCondition = data.map(function (d) {
+                return d['Drought Condition'];
+            });
+
+            // Plot with Plotly.js
+            var trace1 = {
+                x: dates,
+                y: predictedRain,
+                text: dates.map(function (d, i) {
+                    return `Date: ${d}<br>Predicted Rain: ${predictedRain[i]}<br>Predicted Soil Moisture: ${predictedSoilMoist[i]}<br>Predicted Soil Temperature: ${predictedSoilTemp[i]}<br>SMD: ${SMD[i]}<br>Drought Condition: ${droughtCondition[i]}`;
+                }),
+                hoverinfo: 'text',
+                mode: 'lines+markers',
+                name: 'Predicted Rain(mm)'
+            };
+
+            var trace2 = {
+                x: dates,
+                y: predictedSoilMoist,
+                text: dates.map(function (d, i) {
+                    return `Date: ${d}<br>Predicted Rain: ${predictedRain[i]}<br>Predicted Soil Moisture: ${predictedSoilMoist[i]}<br>Predicted Soil Temperature: ${predictedSoilTemp[i]}<br>SMD: ${SMD[i]}<br>Drought Condition: ${droughtCondition[i]}`;
+                }),
+                hoverinfo: 'text',
+                mode: 'lines+markers',
+                name: 'Predicted SoilMoist'
+            };
+
+            var trace3 = {
+                x: dates,
+                y: predictedSoilTemp,
+                text: dates.map(function (d, i) {
+                    return `Date: ${d}<br>Predicted Rain: ${predictedRain[i]}<br>Predicted Soil Moisture: ${predictedSoilMoist[i]}<br>Predicted Soil Temperature: ${predictedSoilTemp[i]}<br>SMD: ${SMD[i]}<br>Drought Condition: ${droughtCondition[i]}`;
+                }),
+                hoverinfo: 'text',
+                mode: 'lines+markers',
+                name: 'Predicted SoilTemp'
+            };
+
+            var layout = {
+                title: 'Predicted Data',
+                xaxis: {
+                    title: 'Date'
+                },
+                yaxis: {
+                    title: 'Values'
+                }
+            };
+
+            var dataPlot = [trace1, trace2, trace3];
+
+            Plotly.newPlot('chart', dataPlot, layout);
+
+            // Create plant information squares
+            Object.keys(plants).slice(0, 12).forEach(function (plant, index) {
+                var plantData = plants[plant];
+                var plantSquare = document.createElement('div');
+                plantSquare.className = 'plant';
+                plantSquare.innerHTML = `
+                    <h3>${plant}</h3>
+                    <!-- <img src="${plantData.plantImage}" alt="${plant}" /> -->
+                    <p id="details-${index + 1}">Details</p>
+                    <span id="status-${index + 1}" class="happy">&#9786;</span>
+                `;
+                plantSquare.addEventListener('click', function () {
+                    updatePlantInfo(plantData, index); // Pass the index to updatePlantInfo
+                });
+                document.getElementById('plant-status').appendChild(plantSquare);
+            });
+
+            // Update plant information based on click
+            function updatePlantInfo(plantData, index) {
+                var plantInfoHTML = `
+                    <h3>${plantData.growthForm}</h36>
+                    <p><strong>Scientific Name:</strong> ${Object.keys(plants)[index]}<br>
+                    <strong>Date:</strong> ${plantData.dates[0]}<br>
+                    <strong>Predicted Rain:</strong> ${plantData.predictedRain[0]} mm<br>
+                    <strong>Predicted Soil Moisture:</strong> ${plantData.predictedSoilMoist[0]}<br>
+                    <strong>Predicted Soil Temperature:</strong> ${plantData.predictedSoilTemp[0]} °C<br>
+                    <strong>SMD:</strong> ${plantData.SMD[0]}<br>
+                    <strong>Drought Condition:</strong> ${plantData.droughtCondition[0]}<br>
+                    <strong>Threat Status:</strong> ${plantData.threatStatus}<br>
+                    <strong>Climate Change Impact:</strong> ${plantData.climateImpact}<br>
+                    <strong>Ecosystem Type:</strong> ${plantData.ecosystemType}<br>
+                    <strong>IUCN Threat Rank:</strong> ${plantData.iucnThreatRank}<br>
+                    <strong>Climate Change Risk:</strong> ${plantData.climateChangeRisk}<br>
+                    <strong>Habitat Distribution:</strong> ${plantData.habitatDistribution}</p>
+                `;
+                document.getElementById('prediction-values').innerHTML = plantInfoHTML;
+
+                updatePlantStatus(plantData, index); // Call the new function to update plant status
+            }
+
+            // Separate function to update plant status
+            function updatePlantStatus(plantData, index) {
+                var smd = plantData.SMD[0];
+                var statusElement = document.getElementById(`status-${index + 1}`);
+                var plantStatusHTML = '';
+
+                if (smd >= 50) {
+                    statusElement.classList.remove('not-happy');
+                    statusElement.classList.add('happy');
+                    statusElement.innerHTML = '&#9786;'; // Happy face
+                    plantStatusHTML = `<p>${plantData.growthForm} is happy today!</p>`;
+                } else {
+                    statusElement.classList.remove('happy');
+                    statusElement.classList.add('not-happy');
+                    statusElement.innerHTML = '&#9785;'; // Sad face
+                    plantStatusHTML = `<p>${plantData.growthForm} is not happy today.</p>`;
+                }
+                document.getElementById(`details-${index + 1}`).innerHTML = plantStatusHTML;
+            }
+        });
+    </script>
+</body>
+</html>
